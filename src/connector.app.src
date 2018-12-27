@@ -1,0 +1,29 @@
+{application, connector,
+ [{description, "SBY Socket server connector"},
+  {vsn, "1.1.0"},
+  {registered, [connector_sup]},
+  {mod, { connector_app, []}},
+  {kernel,[{inet_dist_listen_min,9100},{inet_dist_listen_max,9110}]},
+  {applications,
+   [kernel,
+    stdlib,
+    crypto,
+    sqlite3,
+    jsx,
+    lager,
+    ssl,
+    inets,
+    emqttc,
+    emysql,
+    cowboy
+   ]},
+  {env,[
+        {date, "2018-09-14"},
+        {version, "1.1.0"}
+       ]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
+ ]}.

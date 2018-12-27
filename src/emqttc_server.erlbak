@@ -1,0 +1,73 @@
+-module(emqttc_server).
+
+-behaivor(gen_server).
+
+-define(SERVER, ?MODULE).
+
+-include("config.hrl").
+-include("print.hrl").
+
+%% ------------------------------------------------------------------
+%% API Function Exports
+%% ------------------------------------------------------------------
+-export([start/3, stop/0]).
+
+%% ------------------------------------------------------------------
+%% gen_server Function Exports
+%% ------------------------------------------------------------------
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2,
+         terminate/2, code_change/3]).
+
+-record(state, {mqttc}).
+
+start(Host, Port, ClientId) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Host, Port, ClientId],[]).
+
+stop() ->
+    gen_server:call(?SERVER, stop).
+
+%% ------------------------------------------------------------------
+%% gen_server Function Definitions
+%% ------------------------------------------------------------------
+init([Host, Port, ClientId]) ->
+    {ok, C} = emqttc:start_link([{host, Host}, 
+                                 {port, Port},
+                                 {client_id, ClientId},
+                                 {logger, {error_logger, info}}]),
+    {ok, #state{mqttc = C}}.
+
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State};
+handle_call(_Request, _From, State) ->
+    {reply, ok, State}.
+
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
+%%client connect emqttd servcer
+handle_info({mqttc, C, connected}, State = #state{mqttc = C}) ->
+    ?PRINT("client:~p is connecting emqttd server...~n",[C]),
+    %%emqttc:subscribe(C, {<<"yc/report/gateway/#">>, 1}),
+    {noreply, State};
+%%client disconnect emqttd server
+handle_info({mqttc, C, disconnect}, State = #state{mqttc = C}) ->
+    ?PRINT("Client ~p is disconnected~n", [C]),
+    emqttc:disconnect(C),
+    {noreply, State};
+%%Publish message
+handle_info({topic_and_data, {Topic_Bin, Data_Bin}}, State = #state{mqttc = C}) ->
+    emqttc:publish(C, Topic_Bin, Data_Bin, [{qos, 1}]),
+    {noreply, State};
+%%Receive message
+handle_info({publish, Topic, Payload}, State = #state{mqttc = C}) ->
+    ?PRINT("Payload:~p Topic:~p~n", [Payload, Topic]),
+    %%data_process(Topic, Payload),
+    {noreply, State};
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+terminate(_Reason, _State) ->
+    ok.
+
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
